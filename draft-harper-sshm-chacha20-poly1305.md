@@ -57,32 +57,30 @@ The key derivation process post-Key Exchange yields a 64-byte key, of which 48 b
 
 | Key Segment | Length | Purpose |
 |---|---|---|
-| **K\_E (Encryption Key)** | 32 bytes (256 bits) | Utilized for ChaCha20 to encrypt data |
-| **K\_MAC (MAC Key Seed)** | 16 bytes (128 bits) | Serves as the seed for Poly1305 keys |
+| **K_E (Encryption Key)** | 32 bytes (256 bits) | Utilized for ChaCha20 to encrypt data |
+| **K_MAC (MAC Key Seed)** | 16 bytes (128 bits) | Serves as the seed for Poly1305 keys |
 | **Total Length** | **48 bytes** | Reduced from the original 64 bytes |
 
-It is notable that K\_E is the sole encryption key, simplifying the key management process by eliminating the need for a secondary encryption key.
+It is notable that K_E is the sole encryption key, simplifying the key management process by eliminating the need for a secondary encryption key.
 
 # Nonce Construction
 
 The Nonce utilized by ChaCha20 is crafted as follows:
 
-$$
-N = \text{Fixed\_Nonce\_Prefix} \mathbin\| \text{Block\_Counter}
-$$
+    N = Fixed_Nonce_Prefix || Block_Counter
 
-The "Fixed\_Nonce\_Prefix" is a 96-bit (12-byte) value derived from the hash output of the Key Exchange handshake. This prefix is meant to be fixed and immutable throughout the session, decoupling the Nonce from any attacker-manipulable variables such as sequence numbers.
+The "Fixed_Nonce_Prefix" is a 96-bit (12-byte) value derived from the hash output of the Key Exchange handshake. This prefix is meant to be fixed and immutable throughout the session, decoupling the Nonce from any attacker-manipulable variables such as sequence numbers.
 
-The "Block\_Counter" is a 32-bit (4-byte) segment that uses the 32-bit sequence number as an internal counter for ChaCha20. This ensures compliance with RFC 7539 while maintaining the integrity of the Nonce construction.
+The "Block_Counter" is a 32-bit (4-byte) segment that uses the 32-bit sequence number as an internal counter for ChaCha20. This ensures compliance with RFC 7539 while maintaining the integrity of the Nonce construction.
 
 # MAC Key Stream Generation
 
-Poly1305 requires a 256-bit key consisting of values r and s. The process to derive this key employs K\_E and a zero Nonce. The steps are outlined as follows:
+Poly1305 requires a 256-bit key consisting of values r and s. The process to derive this key employs K_E and a zero Nonce. The steps are outlined as follows:
 
-1. K\_MAC (16 bytes) is zero-padded to 32 bytes, forming the seed for both Poly1305 keys r and s.
+1. K_MAC (16 bytes) is zero-padded to 32 bytes, forming the seed for both Poly1305 keys r and s.
 2. The ChaCha20 transformation is applied as follows:
-    * **Key:** K\_E
-    * **Nonce:** Fixed\_Nonce\_Prefix || 0
+    * **Key:** K_E
+    * **Nonce:** Fixed_Nonce_Prefix || 0
     * **Internal Block Counter:** 0
 3. The first 32 bytes produced by the ChaCha20 transformation are extracted and assigned as the final r and s values for Poly1305.
 4. The required bit-clearing operation for r is performed in accordance with Poly1305 specifications.
@@ -91,10 +89,10 @@ Poly1305 requires a 256-bit key consisting of values r and s. The process to der
 
 When sending an SSH packet P, which contains Length, Padding, and Payload, the processing flow is as follows:
 
-1. Generate the Poly1305 key using K\_E and the constructed Nonce where the block counter is set to 0.
-2. Construct a 12-byte Nonce formed by concatenating the Fixed\_Nonce\_Prefix with the current Sequence\_Number.
-3. Encrypt the packet P using K\_E along with the constructed Nonce, resulting in the ciphertext C.
-4. Authenticate the ciphertext C using the Poly1305 MAC with the derived MAC\_Key. The authenticated data (A) is required to be an empty string to maintain simplicity as permitted by RFC 7539. The authentication tag is generated based on the ciphertext C.
+1. Generate the Poly1305 key using K_E and the constructed Nonce where the block counter is set to 0.
+2. Construct a 12-byte Nonce formed by concatenating the Fixed_Nonce_Prefix with the current Sequence_Number.
+3. Encrypt the packet P using K_E along with the constructed Nonce, resulting in the ciphertext C.
+4. Authenticate the ciphertext C using the Poly1305 MAC with the derived MAC_Key. The authenticated data (A) is required to be an empty string to maintain simplicity as permitted by RFC 7539. The authentication tag is generated based on the ciphertext C.
 5. Finally, concatenate the ciphertext C and the authentication tag to form the complete output packet that is sent.
 
 The recipient will reverse these steps to authenticate and decrypt the incoming packet, ensuring the integrity and confidentiality of the transmitted data.

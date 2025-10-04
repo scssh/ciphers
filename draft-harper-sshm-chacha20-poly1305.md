@@ -35,7 +35,7 @@ SSH relies on authenticated encryption to provide confidentiality and integrity 
 
 This document specifies an authenticated encryption suite built around ChaCha20 and Poly1305 that separates a fixed, session‑unique nonce prefix from the per‑packet block counter used by ChaCha20. The fixed prefix is derived from the key exchange and remains immutable during a given keying interval; the per‑packet block counter is derived from the SSH packet sequence number but is treated strictly as an internal block counter for ChaCha20 (not as a nonce prefix component controllable by an adversary), with explicit handling to ensure that its use cannot cause nonce reuse across different keying intervals or across independent sessions.
 
-The construction conforms to existing ChaCha20/Poly1305 usage rules defined in RFC 7539 and follows SSH Transport Layer packet semantics. The document defines key material layout, nonce construction, MAC key generation, packet encryption, verification, rekey triggers, and limits.
+The construction conforms to existing ChaCha20/Poly1305 usage rules defined in **RFC 7539** and follows SSH Transport Layer packet semantics. The document defines key material layout, nonce construction, MAC key generation, packet encryption, verification, rekey triggers, and limits.
 
 # Conventions and Definitions
 
@@ -43,108 +43,106 @@ This specification uses the key words MUST, MUST NOT, REQUIRED, SHOULD, SHOULD N
 
 Definitions used in this document:
 
-- Fixed_Nonce_Prefix: A 96‑bit (12‑byte) constant value derived from the key exchange outputs for the life of a given SSH encryption key. The prefix is produced by a KDF using the outputs of the SSH Key Exchange (KEX) and must be unique per direction (client→server and server→client) and per keying interval.
-- Block_Counter: A 32‑bit unsigned integer used as ChaCha20's block counter. For a packet, this value is derived from the 32‑bit packet sequence number as defined in Section 6.
-- Nonce: The 96‑bit ChaCha20/Poly1305 nonce formed by concatenating Fixed_Nonce_Prefix || Block_Counter, expressed in network byte order for ChaCha20 input.
-- K_E: 32‑byte (256‑bit) ChaCha20 encryption key.
-- K_MAC: 16‑byte seed value used to derive the Poly1305 one‑time key stream (r and s) for the authentication tag; the final Poly1305 key is 32 bytes (r||s) as specified in RFC 7539 after bit masking of r.
-- Keying Interval: The lifetime of a specific set of K_E and K_MAC values, typically from a KEX until a rekey event.
+* **Fixed\_Nonce\_Prefix**: A 96‑bit (12‑byte) constant value derived from the key exchange outputs for the life of a given SSH encryption key. The prefix is produced by a KDF using the outputs of the SSH Key Exchange (KEX) and must be unique per direction (client→server and server→client) and per keying interval.
+* **Block\_Counter**: A 32‑bit unsigned integer used as ChaCha20's block counter. For a packet, this value is derived from the 32‑bit packet sequence number as defined in Section 6.
+* **Nonce**: The 96‑bit ChaCha20/Poly1305 nonce formed by concatenating Fixed\_Nonce\_Prefix || Block\_Counter, expressed in network byte order for ChaCha20 input.
+* **K\_E**: 32‑byte (256‑bit) ChaCha20 encryption key.
+* **K\_MAC**: 16‑byte seed value used to derive the Poly1305 one‑time key stream (r and s) for the authentication tag; the final Poly1305 key is 32 bytes (r||s) as specified in RFC 7539 after bit masking of r.
+* **Keying Interval**: The lifetime of a specific set of K\_E and K\_MAC values, typically from a KEX until a rekey event.
 
 # Goals and Non‑Goals
 
 This document aims to:
 
-- Provide an SSH authenticated encryption construction using ChaCha20 and Poly1305 consistent with RFC 7539.
-- Remove direct dependence of the nonce on sequence numbers alone by introducing a KEX‑derived fixed nonce prefix per direction and per keying interval.
-- Provide explicit MAC key derivation and nonce usage that avoids nonce reuse across packets and across keying intervals.
-- Specify rekey and usage limits to keep total ChaCha20 block usage within secure bounds.
+* Provide an SSH authenticated encryption construction using ChaCha20 and Poly1305 consistent with RFC 7539.
+* Remove direct dependence of the nonce on sequence numbers alone by introducing a KEX‑derived fixed nonce prefix per direction and per keying interval.
+* Provide explicit MAC key derivation and nonce usage that avoids nonce reuse across packets and across keying intervals.
+* Specify rekey and usage limits to keep total ChaCha20 block usage within secure bounds.
 
 This document does not aim to:
 
-- Replace the SSH MAC‑then‑encrypt vs encrypt‑then‑MAC debates for legacy ciphers; it specifies an AEAD construction that produces ciphertext and an authentication tag consistent with ChaCha20/Poly1305 AEAD usage.
-- Change high‑level SSH Transport packet framing, compression, or packet length semantics outside of what is necessary to specify AEAD usage.
+* Replace the SSH MAC‑then‑encrypt vs encrypt‑then‑MAC debates for legacy ciphers; it specifies an AEAD construction that produces ciphertext and an authentication tag consistent with ChaCha20/Poly1305 AEAD usage.
+* Change high‑level SSH Transport packet framing, compression, or packet length semantics outside of what is necessary to specify AEAD usage.
 
 # Cryptographic Primitives
 
-The primitives used are:
-
 | Primitive | Parameters |
-|---|---|
+| :--- | :--- |
 | Stream Cipher | ChaCha20, 20 rounds, 256‑bit key |
 | MAC | Poly1305, producing 128‑bit authentication tags |
 
-Implementations MUST use the ChaCha20 and Poly1305 constructions and bit and byte ordering exactly as specified in RFC 7539.
+Implementations MUST use the ChaCha20 and Poly1305 constructions and bit and byte ordering exactly as specified in **RFC 7539**.
 
 # Key Derivation and Key Material Layout
 
 After SSH Key Exchange completes and the keying material is calculated with the SSH KDF (as specified by the transported KEX algorithm), the KDF MUST output at least 48 bytes of keying material for this AEAD construction. The 48 bytes are apportioned as follows:
 
 | Key Segment | Length | Use |
-|---|---:|---|
-| K_E | 32 bytes | ChaCha20 encryption key |
-| K_MAC | 16 bytes | Seed for Poly1305 key stream generation (see Section 7) |
+| :--- | ---: | :--- |
+| K\_E | 32 bytes | ChaCha20 encryption key |
+| K\_MAC | 16 bytes | Seed for Poly1305 key stream generation (see Section 7) |
 
-Implementations MUST derive one independent set of these key materials per direction (client→server and server→client). The Fixed_Nonce_Prefix (Section 6) MUST also be derived from the KEX outputs separately for each direction. The KDF inputs used to derive K_E, K_MAC, and Fixed_Nonce_Prefix MUST include all standard SSH KDF inputs (session identifier, exchange hash, and the unique letter value per SSH conventions) and MUST be clearly documented by the implementation.
+Implementations MUST derive one independent set of these key materials per direction (client→server and server→client). The Fixed\_Nonce\_Prefix (Section 6) MUST also be derived from the KEX outputs separately for each direction. The KDF inputs used to derive K\_E, K\_MAC, and Fixed\_Nonce\_Prefix MUST include all standard SSH KDF inputs (session identifier, exchange hash, and the unique letter value per SSH conventions) and MUST be clearly documented by the implementation.
 
-If a KDF in use yields more than 48 bytes of output, the additional output MUST NOT be used for other cryptographic purposes unless explicitly specified; implementations SHOULD consume only the 48 bytes required by this construction for these keys and derive any additional per‑session values (e.g., Fixed_Nonce_Prefix) from the same KDF in a deterministic, documented manner.
+If a KDF in use yields more than 48 bytes of output, the additional output MUST NOT be used for other cryptographic purposes unless explicitly specified; implementations SHOULD consume only the 48 bytes required by this construction for these keys and derive any additional per‑session values (e.g., Fixed\_Nonce\_Prefix) from the same KDF in a deterministic, documented manner.
 
 # Nonce Construction and Usage
 
 Nonce construction:
 
-Nonce = Fixed_Nonce_Prefix || Block_Counter
+Nonce = Fixed\_Nonce\_Prefix || Block\_Counter
 
 where:
 
-- Fixed_Nonce_Prefix is 12 bytes (96 bits) and is constant for the lifetime of the keying interval and per direction.
-- Block_Counter is 4 bytes (32 bits) and is derived from the SSH packet sequence number as specified below.
+* **Fixed\_Nonce\_Prefix** is 12 bytes (96 bits) and is constant for the lifetime of the keying interval and per direction.
+* **Block\_Counter** is 4 bytes (32 bits) and is derived from the SSH packet sequence number as specified below.
 
 Byte order and placement
 
-The ChaCha20 nonce input MUST be formed by placing Fixed_Nonce_Prefix as the high‑order 12 bytes followed by the 4‑byte Block_Counter in little‑endian form if the underlying ChaCha20 implementation expects the RFC 7539 96‑bit nonce followed by a 32‑bit block counter internally. Implementations MUST ensure that the ordering of bytes matches the ChaCha20 input format required by the implementation library to prevent cross‑implementation mismatches. For clarity, the effective 128‑bit ChaCha20 input state comprises:
+The ChaCha20 nonce input MUST be formed by placing Fixed\_Nonce\_Prefix as the high‑order 12 bytes followed by the 4‑byte Block\_Counter in little‑endian form if the underlying ChaCha20 implementation expects the RFC 7539 96‑bit nonce followed by a 32‑bit block counter internally. Implementations MUST ensure that the ordering of bytes matches the ChaCha20 input format required by the implementation library to prevent cross‑implementation mismatches. For clarity, the effective 128‑bit ChaCha20 input state comprises:
 
-- ChaCha20 32‑bit block counter (least significant 32 bits) = Block_Counter
-- ChaCha20 96‑bit nonce (most significant 96 bits) = Fixed_Nonce_Prefix
+* ChaCha20 32‑bit block counter (least significant 32 bits) = **Block\_Counter**
+* ChaCha20 96‑bit nonce (most significant 96 bits) = **Fixed\_Nonce\_Prefix**
 
-## Block_Counter derivation
+## Block\_Counter derivation
 
-The Block_Counter for packet with SSH sequence number S (where S is a 32‑bit unsigned integer that increments by 1 for each transported SSH packet, as per SSH) is defined as:
+The Block\_Counter for packet with SSH sequence number S (where S is a 32‑bit unsigned integer that increments by 1 for each transported SSH packet, as per SSH) is defined as:
 
-Block_Counter = S
+Block\_Counter = S
 
-Implementations MUST treat S strictly as an internal ChaCha20 block counter and MUST NOT use S alone as the nonce for any other primitive or in any manner that may cause reuse across keying intervals. Because Block_Counter is only 32 bits, single keying intervals MUST enforce limits on the number of packets to avoid block counter wraparound.
+Implementations MUST treat S strictly as an internal ChaCha20 block counter and MUST NOT use S alone as the nonce for any other primitive or in any manner that may cause reuse across keying intervals. Because Block\_Counter is only 32 bits, single keying intervals MUST enforce limits on the number of packets to avoid block counter wraparound.
 
-## Fixed_Nonce_Prefix derivation
+## Fixed\_Nonce\_Prefix derivation
 
-Fixed_Nonce_Prefix MUST be derived from the SSH KEX output and session identifier using the KDF in a way that ensures uniqueness per direction and per keying interval. An example derivation (implementations MAY use equivalent derivations produced by the KDF specified by the negotiated KEX) is:
+Fixed\_Nonce\_Prefix MUST be derived from the SSH KEX output and session identifier using the KDF in a way that ensures uniqueness per direction and per keying interval. An example derivation (implementations MAY use equivalent derivations produced by the KDF specified by the negotiated KEX) is:
 
-- Fixed_Nonce_Prefix := KDF(session_id, "chacha20-poly1305-nonce", direction_identifier) where direction_identifier is 'C' for client→server and 'S' for server→client, and the KDF returns 12 bytes.
+* Fixed\_Nonce\_Prefix := KDF(session\_id, "chacha20-poly1305-nonce", direction\_identifier) where direction\_identifier is 'C' for client→server and 'S' for server→client, and the KDF returns 12 bytes.
 
-Implementations MUST document the exact KDF label and method used to derive Fixed_Nonce_Prefix.
+Implementations MUST document the exact KDF label and method used to derive Fixed\_Nonce\_Prefix.
 
 ## Constraints and rationale
 
-Using a fixed per‑direction per‑keying‑interval prefix prevents an attacker who can manipulate sequence number semantics from causing nonce reuse across keying intervals or sessions. Because the Block_Counter is used only as the per‑packet ChaCha20 block counter, any attacker who attempts to replay or reorder packets without matching Fixed_Nonce_Prefix will induce decryption failures.
+Using a fixed per‑direction per‑keying\_interval prefix prevents an attacker who can manipulate sequence number semantics from causing nonce reuse across keying intervals or sessions. Because the Block\_Counter is used only as the per‑packet ChaCha20 block counter, any attacker who attempts to replay or reorder packets without matching Fixed\_Nonce\_Prefix will induce decryption failures.
 
 # Poly1305 Key Derivation (MAC Key Stream)
 
-Poly1305 requires a 32‑byte one‑time key per RFC 7539, consisting of 16 bytes r (with specific bit clamping) followed by 16 bytes s. The one‑time Poly1305 key used to authenticate packets during a keying interval MUST be derived using K_E, the Fixed_Nonce_Prefix, and a zero Block_Counter as follows.
+Poly1305 requires a 32‑byte one‑time key per **RFC 7539**, consisting of 16 bytes r (with specific bit clamping) followed by 16 bytes s. The one‑time Poly1305 key used to authenticate packets during a keying interval MUST be derived using K\_E, the Fixed\_Nonce\_Prefix, and a zero Block\_Counter as follows.
 
 Derivation steps:
 
 | Step | Operation |
-|---|---|
-| 1 | Construct a 12‑byte Nonce_Derivation_N once: Nonce_Derivation = Fixed_Nonce_Prefix || 0x00000000 |
-| 2 | Initialize ChaCha20 with Key = K_E and Nonce = Nonce_Derivation; set ChaCha20 internal block counter to 0 as per RFC 7539 semantics for key stream extraction. |
+| :--- | :--- |
+| 1 | Construct a 12‑byte Nonce\_Derivation\_N once: Nonce\_Derivation = Fixed\_Nonce\_Prefix || 0x00000000 |
+| 2 | Initialize ChaCha20 with Key = K\_E and Nonce = Nonce\_Derivation; set ChaCha20 internal block counter to 0 as per RFC 7539 semantics for key stream extraction. |
 | 3 | Generate the first 64 bytes of the ChaCha20 stream (or at minimum the first 32 bytes required). |
-| 4 | Take the first 32 bytes of the keystream; interpret them as 32 octets k0..k31 in little‑endian order to form the Poly1305 key K_poly = k0||k1||...||k31. |
+| 4 | Take the first 32 bytes of the keystream; interpret them as 32 octets k0..k31 in little‑endian order to form the Poly1305 key **K\_poly** = k0||k1||...||k31. |
 | 5 | Apply Poly1305 r masking: mask the appropriate bits of the first 16 octets (r) as per RFC 7539 (clear bits 0..3 of byte 3, bits 4..7 of bytes 7, 11, and 15 as required by Poly1305 specification). |
 
-Note: Implementations MUST ensure the ChaCha20 stream used for Poly1305 key derivation uses the same key K_E and the same Fixed_Nonce_Prefix as used for packet encryption, with Block_Counter set to zero for this derivation. The use of a zero block counter for MAC key derivation ensures the Poly1305 key is unique per keying interval and distinct from per‑packet block counters used for encryption.
+Note: Implementations MUST ensure the ChaCha20 stream used for Poly1305 key derivation uses the same key K\_E and the same Fixed\_Nonce\_Prefix as used for packet encryption, with Block\_Counter set to zero for this derivation. The use of a zero block counter for MAC key derivation ensures the Poly1305 key is unique per keying interval and distinct from per‑packet block counters used for encryption.
 
-## K_MAC handling
+## K\_MAC handling
 
-K_MAC (16 bytes) is NOT used directly as the final Poly1305 key. Instead, K_MAC is reserved as a seed that is conceptually encoded into the ChaCha20 stream derivation process for additional domain separation if desired by an implementation. Implementations MAY incorporate K_MAC into the ChaCha20 initial block (for example by XORing K_MAC into the first 16 bytes of the key schedule or by deriving an intermediate key from K_E and K_MAC via the SSH KDF) only if this procedure is deterministic, documented, and ensures that the resulting Poly1305 key is unique per keying interval and per direction. The mandatory minimum is that K_E and Fixed_Nonce_Prefix as described above are used to produce the Poly1305 key; any additional use of K_MAC for domain separation MUST not violate ChaCha20 or Poly1305 assumptions and MUST be clearly specified.
+K\_MAC (16 bytes) is NOT used directly as the final Poly1305 key. Instead, K\_MAC is reserved as a seed that is conceptually encoded into the ChaCha20 stream derivation process for additional domain separation if desired by an implementation. Implementations MAY incorporate K\_MAC into the ChaCha20 initial block (for example by XORing K\_MAC into the first 16 bytes of the key schedule or by deriving an intermediate key from K\_E and K\_MAC via the SSH KDF) only if this procedure is deterministic, documented, and ensures that the resulting Poly1305 key is unique per keying interval and per direction. The mandatory minimum is that K\_E and Fixed\_Nonce\_Prefix as described above are used to produce the Poly1305 key; any additional use of K\_MAC for domain separation MUST not violate ChaCha20 or Poly1305 assumptions and MUST be clearly specified.
 
 Implementations MUST store the derived Poly1305 key (r||s) in memory with protections appropriate for secret key material and MUST discard the ChaCha20 keystream material after use.
 
@@ -154,31 +152,31 @@ The Poly1305 key derived above is used as a one‑time key per packet for the en
 
 ## Alternative: per‑packet Poly1305 key
 
-Implementations MAY instead choose to derive a Poly1305 key per packet by using Block_Counter = 0 to derive r||s then incrementing the internal ChaCha20 counter for each packet key derivation; however, this approach must still ensure that Poly1305 keys are never reused and that ChaCha20 block counter consumption limits are observed. If an implementation derives a per‑packet Poly1305 key from K_E and the Fixed_Nonce_Prefix with differing Block_Counter values, those Block_Counter values MUST not collide with those used for the packet encryption stream for the same nonce and key. Implementations choosing per‑packet Poly1305 keys MUST document the exact derivation and ensure it is secure and unambiguous.
+Implementations MAY instead choose to derive a Poly1305 key per packet by using Block\_Counter = 0 to derive r||s then incrementing the internal ChaCha20 counter for each packet key derivation; however, this approach must still ensure that Poly1305 keys are never reused and that ChaCha20 block counter consumption limits are observed. If an implementation derives a per‑packet Poly1305 key from K\_E and the Fixed\_Nonce\_Prefix with differing Block\_Counter values, those Block\_Counter values MUST not collide with those used for the packet encryption stream for the same nonce and key. Implementations choosing per‑packet Poly1305 keys MUST document the exact derivation and ensure it is secure and unambiguous.
 
 # Packet Processing: Encryption and Authentication
 
-This section prescribes precise packet processing steps to produce the on‑wire ciphertext and authentication tag. Packets are processed per direction using the K_E, Fixed_Nonce_Prefix, and Poly1305 key derived for that direction.
+This section prescribes precise packet processing steps to produce the on‑wire ciphertext and authentication tag. Packets are processed per direction using the K\_E, Fixed\_Nonce\_Prefix, and Poly1305 key derived for that direction.
 
 Inputs:
 
 | Name | Description |
-|---|---|
+| :--- | :--- |
 | P | Plaintext packet payload as defined by SSH (Length, Padding, Payload) prior to encryption |
 | S | SSH packet sequence number (32‑bit unsigned) |
-| K_E | 32‑byte ChaCha20 key for this direction |
-| Fixed_Nonce_Prefix | 12‑byte nonce prefix for this direction |
-| K_poly | 32‑byte Poly1305 key derived per Section 7 |
+| K\_E | 32‑byte ChaCha20 key for this direction |
+| Fixed\_Nonce\_Prefix | 12‑byte nonce prefix for this direction |
+| K\_poly | 32‑byte Poly1305 key derived per Section 7 |
 
 Processing steps:
 
 | Step | Operation |
-|---|---|
-| 1 | Compute Block_Counter = S (as 32‑bit unsigned integer). |
-| 2 | Construct Nonce = Fixed_Nonce_Prefix || Block_Counter. |
-| 3 | Encrypt the plaintext P using ChaCha20 with key K_E and Nonce, using ChaCha20 as a stream cipher starting at block counter = Block_Counter. The resulting ciphertext is C. Implementations MUST follow RFC 7539 for ChaCha20 block counter semantics. |
-| 4 | Compute the Poly1305 tag T over A = empty string and the ciphertext C using the derived Poly1305 key K_poly as: T = Poly1305(K_poly, A || C). The authenticated data A is an empty octet string. The MAC computation MUST follow RFC 7539 and Poly1305 specification for padding and length encoding. |
-| 5 | Output on the wire: C || T. The wire format MUST place the 16‑byte Poly1305 tag T immediately following the ciphertext C. |
+| :--- | :--- |
+| 1 | Compute Block\_Counter = S (as 32‑bit unsigned integer). |
+| 2 | Construct Nonce = Fixed\_Nonce\_Prefix || Block\_Counter. |
+| 3 | Encrypt the plaintext P using ChaCha20 with key K\_E and Nonce, using ChaCha20 as a stream cipher starting at block counter = Block\_Counter. The resulting ciphertext is C. Implementations MUST follow RFC 7539 for ChaCha20 block counter semantics. |
+| 4 | Compute the Poly1305 tag T over A = empty string and the ciphertext C using the derived Poly1305 key K\_poly as: T = Poly1305(K\_poly, A || C). The authenticated data A is an empty octet string. The MAC computation MUST follow RFC 7539 and Poly1305 specification for padding and length encoding. |
+| 5 | Output on the wire: C || T. The wire format MUST place the 16\_byte Poly1305 tag T immediately following the ciphertext C. |
 
 ## Notes on AAD
 
@@ -186,31 +184,31 @@ This construction uses an empty additional authenticated data (A = empty) in ord
 
 ## Ordering and stream alignment
 
-ChaCha20 encryption MUST be performed in full‑packet units using the nonce containing the packet's Block_Counter. Implementers MUST ensure that the ChaCha20 internal counter and block generation are aligned consistently with the RFC 7539 block counter model so that the derived Poly1305 key material (generated at Block_Counter = 0 for MAC derivation) does not overlap with blocks consumed for packet encryption.
+ChaCha20 encryption MUST be performed in full‑packet units using the nonce containing the packet's Block\_Counter. Implementers MUST ensure that the ChaCha20 internal counter and block generation are aligned consistently with the RFC 7539 block counter model so that the derived Poly1305 key material (generated at Block\_Counter = 0 for MAC derivation) does not overlap with blocks consumed for packet encryption.
 
 # Packet Processing: Reception, Authentication, and Decryption
 
-On receipt of a packet consisting of C || T, the recipient performs the following steps using the appropriate per‑direction keys and derived values.
+On receipt of a packet consisting of C || T, the recipient performs the following steps using the appropriate per\_direction keys and derived values.
 
 Inputs:
 
 | Name | Description |
-|---|---|
+| :--- | :--- |
 | C | Received ciphertext |
 | T | Received 16‑byte Poly1305 tag |
 | S | Expected SSH packet sequence number for this packet |
-| K_E | Local 32‑byte ChaCha20 key for this direction |
-| Fixed_Nonce_Prefix | Local 12‑byte Fixed_Nonce_Prefix for this direction |
-| K_poly | Poly1305 key derived per Section 7 |
+| K\_E | Local 32‑byte ChaCha20 key for this direction |
+| Fixed\_Nonce\_Prefix | Local 12‑byte Fixed\_Nonce\_Prefix for this direction |
+| K\_poly | Poly1305 key derived per Section 7 |
 
 Processing steps:
 
 | Step | Operation |
-|---|---|
-| 1 | Compute Block_Counter = S. |
-| 2 | Construct Nonce = Fixed_Nonce_Prefix || Block_Counter. |
-| 3 | Compute the Poly1305 tag T' = Poly1305(K_poly, A || C) with A = empty. If T' does not equal T, the packet MUST be treated as failed authentication; the implementation MUST follow SSH failure handling for authentication errors (terminate the connection or follow configured rekey/recovery procedures). |
-| 4 | If authentication succeeds, decrypt C using ChaCha20 with K_E and Nonce, producing plaintext P. The decrypted P is then processed as a normal SSH packet (padding validation, payload extraction, etc.). |
+| :--- | :--- |
+| 1 | Compute Block\_Counter = S. |
+| 2 | Construct Nonce = Fixed\_Nonce\_Prefix || Block\_Counter. |
+| 3 | Compute the Poly1305 tag T' = Poly1305(K\_poly, A || C) with A = empty. If T' does not equal T, the packet MUST be treated as failed authentication; the implementation MUST follow SSH failure handling for authentication errors (terminate the connection or follow configured rekey/recovery procedures). |
+| 4 | If authentication succeeds, decrypt C using ChaCha20 with K\_E and Nonce, producing plaintext P. The decrypted P is then processed as a normal SSH packet (padding validation, payload extraction, etc.). |
 
 ## Timing and constant‑time verification
 
@@ -218,25 +216,25 @@ Poly1305 tag comparisons MUST be performed in constant time with respect to the 
 
 ## Replay and out‑of‑order packets
 
-Because Block_Counter is derived from the SSH sequence number, out‑of‑order delivery or replays will result in a Block_Counter that does not match the receiver's expected S for the current processing position. Implementations MUST follow SSH transport layer replay window semantics and sequence number handling when deciding whether to accept out‑of‑order packets. Acceptance of out‑of‑order packets requires authentication verification using the Block_Counter derived from the sequence number encoded in the packet context; implementations MUST ensure that sequence number handling does not permit reuse of Block_Counter values that would cause ChaCha20 nonce reuse.
+Because Block\_Counter is derived from the SSH sequence number, out‑of\_order delivery or replays will result in a Block\_Counter that does not match the receiver's expected S for the current processing position. Implementations MUST follow SSH transport layer replay window semantics and sequence number handling when deciding whether to accept out‑of\_order packets. Acceptance of out‑of\_order packets requires authentication verification using the Block\_Counter derived from the sequence number encoded in the packet context; implementations MUST ensure that sequence number handling does not permit reuse of Block\_Counter values that would cause ChaCha20 nonce reuse.
 
 # Rekeying and Limits
 
 ChaCha20/Poly1305 security depends on never reusing the same (key, nonce) pair and on limiting total keystream consumption under a single key. Implementations MUST enforce limits and rekeying policies as follows.
 
 | Requirement | Value / Action |
-|---|---|
-| Maximum packets per keying interval | Rekey before 2^32 packets would be sent with the same Fixed_Nonce_Prefix and K_E in a single direction (practical limit: rekey well before sequence number approaches 2^32 − 1). |
+| :--- | :--- |
+| Maximum packets per keying interval | Rekey before **2^32** packets would be sent with the same Fixed\_Nonce\_Prefix and K\_E in a single direction (practical limit: rekey well before sequence number approaches **2^32 - 1**). |
 | Maximum ChaCha20 blocks per packet | A single packet encryption may consume multiple 64‑byte ChaCha20 blocks; implementations MUST account for blocks consumed when tracking total blocks used. |
-| Keystream block usage limit | Rekey before more than 2^32 − 1 ChaCha20 blocks have been generated under a single K_E/Fixed_Nonce_Prefix pair. |
+| Keystream block usage limit | Rekey before more than **2^32 - 1** ChaCha20 blocks have been generated under a single K\_E/Fixed\_Nonce\_Prefix pair. |
 | Poly1305 tag reuse protection | Because Poly1305 is used with a key derived per keying interval, implementations MUST ensure the Poly1305 key is never reused across different keying intervals. Rekeying resets the Poly1305 key. |
-| Rekey trigger recommendations | Implementations SHOULD trigger rekeying based on whichever comes first: number of packets (e.g., 2^31 packets), number of bytes (e.g., 2^40 bytes), elapsed time (e.g., 1 hour), or explicit administrative policy. These thresholds are implementation choices but MUST be conservative relative to the theoretical limits above. |
+| Rekey trigger recommendations | Implementations SHOULD trigger rekeying based on whichever comes first: number of packets (e.g., **2^31** packets), number of bytes (e.g., **2^40** bytes), elapsed time (e.g., 1 hour), or explicit administrative policy. These thresholds are implementation choices but MUST be conservative relative to the theoretical limits above. |
 
 ## Rationale and examples
 
-Because Block_Counter is the 32‑bit packet sequence number, a naïve policy that allows sequence number wraparound would permit reuse of Block_Counter values with the same Fixed_Nonce_Prefix and K_E, producing identical ChaCha20 nonces and catastrophic keystream reuse. To avoid this, implementations MUST ensure that rekeying occurs prior to any possibility of Block_Counter reuse under the same K_E/Fixed_Nonce_Prefix. A conservative policy is to rekey when S approaches 2^31 packets or earlier.
+Because Block\_Counter is the 32‑bit packet sequence number, a naïve policy that allows sequence number wraparound would permit reuse of Block\_Counter values with the same Fixed\_Nonce\_Prefix and K\_E, producing identical ChaCha20 nonces and catastrophic keystream reuse. To avoid this, implementations MUST ensure that rekeying occurs prior to any possibility of Block\_Counter reuse under the same K\_E/Fixed\_Nonce\_Prefix. A conservative policy is to rekey when S approaches **2^31** packets or earlier.
 
-When counting ChaCha20 block usage, consider that each 64‑byte ChaCha20 block corresponds to one increment of the internal block counter; a packet of size N bytes (ciphertext) consumes ceil(N / 64) blocks. Implementations MUST track total blocks generated for both packet encryption and for any ChaCha20 usage for Poly1305 key derivation or other permitted uses, and MUST rekey before the total approaches 2^32.
+When counting ChaCha20 block usage, consider that each 64‑byte ChaCha20 block corresponds to one increment of the internal block counter; a packet of size N bytes (ciphertext) consumes `ceil(N / 64)` blocks. Implementations MUST track total blocks generated for both packet encryption and for any ChaCha20 usage for Poly1305 key derivation or other permitted uses, and MUST rekey before the total approaches **2^32**.
 
 # Interoperability and Versioning
 
@@ -245,8 +243,8 @@ Negotiation and algorithm name
 This AEAD construction MUST be exposed through SSH algorithm negotiation. Implementations SHOULD introduce a clear algorithm identifier in the SSH Transport Layer encryption algorithm list. Example algorithm name (implementations may select an appropriate IANA‑registered name):
 
 | Algorithm identifier | Description |
-|---|---|
-| chacha20-poly1305-fixedprefix-00@scssh.github.io | ChaCha20 (256‑bit) with Poly1305, Fixed Nonce Prefix derived from KEX; Block_Counter = packet sequence number (32‑bit). |
+| :--- | :--- |
+| chacha20-poly1305-fixedprefix-00@scssh.github.io | ChaCha20 (256‑bit) with Poly1305, Fixed Nonce Prefix derived from KEX; Block\_Counter = packet sequence number (32‑bit). |
 
 ## Negotiation behavior
 
@@ -254,13 +252,13 @@ When negotiating ciphersuites, implementations MUST follow SSH Algorithm Negotia
 
 ## Compatibility notes
 
-Because Fixed_Nonce_Prefix derivation and the exact ordering of bytes in the ChaCha20 input can vary between implementations, implementers MUST clearly document:
+Because Fixed\_Nonce\_Prefix derivation and the exact ordering of bytes in the ChaCha20 input can vary between implementations, implementers MUST clearly document:
 
 | Item | MUST document |
-|---|---|
-| Fixed_Nonce_Prefix derivation label and KDF inputs | The exact KDF label, inputs, and byte length used |
-| Endianness and byte ordering for Block_Counter in nonce | Whether Block_Counter is placed in little‑endian or network order in the ChaCha20 counter field |
-| Poly1305 key derivation details | Which ChaCha20 blocks were used, and whether K_MAC is mixed into derivation |
+| :--- | :--- |
+| Fixed\_Nonce\_Prefix derivation label and KDF inputs | The exact KDF label, inputs, and byte length used |
+| Endianness and byte ordering for Block\_Counter in nonce | Whether Block\_Counter is placed in little‑endian or network order in the ChaCha20 counter field |
+| Poly1305 key derivation details | Which ChaCha20 blocks were used, and whether K\_MAC is mixed into derivation |
 
 ## Interoperability testing
 
@@ -270,7 +268,7 @@ Implementations SHOULD provide test vectors (see Appendix A) covering key deriva
 
 ## Nonce misuse and reuse
 
-The central risk for ChaCha20 is reuse of the same (K_E, Nonce) pair. This design prevents cross‑keying‑interval reuse by binding Fixed_Nonce_Prefix to the KEX and by mandating rekeying before Block_Counter wraparound. Implementers MUST ensure that Fixed_Nonce_Prefix is unique per direction and per keying interval and that rekeying is enforced well before any 32‑bit counter wrap.
+The central risk for ChaCha20 is reuse of the same (**K\_E**, **Nonce**) pair. This design prevents cross‑keying\_interval reuse by binding Fixed\_Nonce\_Prefix to the KEX and by mandating rekeying before Block\_Counter wraparound. Implementers MUST ensure that Fixed\_Nonce\_Prefix is unique per direction and per keying interval and that rekeying is enforced well before any 32‑bit counter wrap.
 
 ## Poly1305 considerations
 
@@ -278,15 +276,15 @@ Poly1305 must never be used with the same one‑time key more than once. This sp
 
 ## Side channels and constant‑time operations
 
-Compare authentication tags using constant‑time comparison routines. Protect key material in memory (zeroize on key retirement) and follow platform best practices to mitigate side channels. Keep ChaCha20 and Poly1305 implementations free of data‑dependent branches on secret values.
+Compare authentication tags using **constant‑time comparison routines**. Protect key material in memory (zeroize on key retirement) and follow platform best practices to mitigate side channels. Keep ChaCha20 and Poly1305 implementations free of data‑dependent branches on secret values.
 
 ## Replay, reordering, and sequence number handling
 
-Because Block_Counter is tied to the SSH sequence number, replayed or reordered packets may produce Block_Counter values that the receiver considers out of window. Implementations MUST enforce replay protection consistent with SSH Transport semantics. Acceptance of out‑of‑order packets requires careful handling to prevent nonce reuse; do not accept packets that would cause reuse of a Block_Counter value already consumed under the same K_E/Fixed_Nonce_Prefix.
+Because Block\_Counter is tied to the SSH sequence number, replayed or reordered packets may produce Block\_Counter values that the receiver considers out of window. Implementations MUST enforce **replay protection** consistent with SSH Transport semantics. Acceptance of out‑of\_order packets requires careful handling to prevent nonce reuse; do not accept packets that would cause reuse of a Block\_Counter value already consumed under the same **K\_E/Fixed\_Nonce\_Prefix**.
 
 ## KDF and key derivation integrity
 
-Fixed_Nonce_Prefix must be derived in a way that ensures uniqueness and unpredictability across sessions. Use the SSH‑specified KDF or an equivalent deterministic KDF with documented labels and inputs. Do not derive Fixed_Nonce_Prefix from values that an attacker could influence.
+Fixed\_Nonce\_Prefix must be derived in a way that ensures uniqueness and unpredictability across sessions. Use the SSH‑specified KDF or an equivalent deterministic KDF with documented labels and inputs. Do not derive Fixed\_Nonce\_Prefix from values that an attacker could influence.
 
 ## Denial‑of‑service considerations
 

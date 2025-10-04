@@ -7,7 +7,7 @@
 <title>Private Encryption Suite for SSH Using ChaCha20-Poly1305 Version 00</title>
 <meta content="Sophie Harper" name="author">
 <meta content="
-       This document presents a new encryption suite, chacha20-poly1305-00@scssh.github.io, for the SSH protocol which utilizes ChaCha20 as the stream cipher and Poly1305 as the message authentication code. By incorporating the Authenticated Encryption with Associated Data construction from RFC 7539, this design replaces the existing dependency on sequence numbers for Nonce generation, thus enhancing both security and operational efficiency. 
+       This document specifies an authenticated encryption scheme for the SSH Transport Layer Protocol that uses ChaCha20 with a 256‑bit key and Poly1305 as the message authentication code. The construction removes reliance on SSH sequence numbers as the sole nonce source and instead uses a fixed nonce prefix derived from the key exchange together with a per‑packet internal block counter. The design is compatible with RFC 7539 ChaCha20/Poly1305 semantics while addressing nonce management concerns present in previous SSH ciphersuites. This memo updates the SSH Transport Layer semantics for encryption and decryption, key derivation, and packet processing, and provides guidance for implementers and operators. 
     " name="description">
 <meta content="xml2rfc 3.30.2" name="generator">
 <meta content="SSH" name="keyword">
@@ -1079,7 +1079,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <h1 id="title">Private Encryption Suite for SSH Using ChaCha20-Poly1305 Version 00</h1>
 <section id="section-abstract">
       <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
-<p id="section-abstract-1">This document presents a new encryption suite, chacha20-poly1305-00@scssh.github.io, for the SSH protocol which utilizes ChaCha20 as the stream cipher and Poly1305 as the message authentication code. By incorporating the Authenticated Encryption with Associated Data construction from RFC 7539, this design replaces the existing dependency on sequence numbers for Nonce generation, thus enhancing both security and operational efficiency.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-1">This document specifies an authenticated encryption scheme for the SSH Transport Layer Protocol that uses ChaCha20 with a 256‑bit key and Poly1305 as the message authentication code. The construction removes reliance on SSH sequence numbers as the sole nonce source and instead uses a fixed nonce prefix derived from the key exchange together with a per‑packet internal block counter. The design is compatible with RFC 7539 ChaCha20/Poly1305 semantics while addressing nonce management concerns present in previous SSH ciphersuites. This memo updates the SSH Transport Layer semantics for encryption and decryption, key derivation, and packet processing, and provides guidance for implementers and operators.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
 </section>
 <section class="note rfcEditorRemove" id="section-note.1">
       <h2 id="name-discussion-venues">
@@ -1144,34 +1144,101 @@ svg :is([fill="white"], [fill^="#fff"]) {
             <p id="section-toc.1-1.2.1" class="keepWithNext"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-conventions-and-definitions" class="internal xref">Conventions and Definitions</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
-            <p id="section-toc.1-1.3.1" class="keepWithNext"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-core-cryptographic-primitiv" class="internal xref">Core Cryptographic Primitives</a></p>
+            <p id="section-toc.1-1.3.1" class="keepWithNext"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-goals-and-non-goals" class="internal xref">Goals and Non-Goals</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
-            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-key-and-nonce-management" class="internal xref">Key and Nonce Management</a></p>
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-cryptographic-primitives" class="internal xref">Cryptographic Primitives</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
-            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-nonce-construction" class="internal xref">Nonce Construction</a></p>
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-key-derivation-and-key-mate" class="internal xref">Key Derivation and Key Material Layout</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
-            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-mac-key-stream-generation" class="internal xref">MAC Key Stream Generation</a></p>
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-nonce-construction-and-usag" class="internal xref">Nonce Construction and Usage</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
+                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-block_counter-derivation" class="internal xref">Block_Counter derivation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
+                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-fixed_nonce_prefix-derivati" class="internal xref">Fixed_Nonce_Prefix derivation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3">
+                <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-constraints-and-rationale" class="internal xref">Constraints and rationale</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
-            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-packet-processing-flow" class="internal xref">Packet Processing Flow</a></p>
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-poly1305-key-derivation-mac" class="internal xref">Poly1305 Key Derivation (MAC Key Stream)</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-k_mac-handling" class="internal xref">K_MAC handling</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2">
+                <p id="section-toc.1-1.7.2.2.1"><a href="#section-7.2" class="auto internal xref">7.2</a>.  <a href="#name-per-packet-mac-usage" class="internal xref">Per-packet MAC usage</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3">
+                <p id="section-toc.1-1.7.2.3.1"><a href="#section-7.3" class="auto internal xref">7.3</a>.  <a href="#name-alternative-per-packet-poly" class="internal xref">Alternative: per-packet Poly1305 key</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
-            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-packet-processing-encryptio" class="internal xref">Packet Processing: Encryption and Authentication</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1">
+                <p id="section-toc.1-1.8.2.1.1"><a href="#section-8.1" class="auto internal xref">8.1</a>.  <a href="#name-notes-on-aad" class="internal xref">Notes on AAD</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.2">
+                <p id="section-toc.1-1.8.2.2.1"><a href="#section-8.2" class="auto internal xref">8.2</a>.  <a href="#name-ordering-and-stream-alignme" class="internal xref">Ordering and stream alignment</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
-            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-packet-processing-reception" class="internal xref">Packet Processing: Reception, Authentication, and Decryption</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
+                <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="auto internal xref">9.1</a>.  <a href="#name-timing-and-constant-time-ve" class="internal xref">Timing and constant-time verification</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.2">
+                <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="auto internal xref">9.2</a>.  <a href="#name-replay-and-out-of-order-pac" class="internal xref">Replay and out-of-order packets</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3">
+                <p id="section-toc.1-1.9.2.3.1"><a href="#section-9.3" class="auto internal xref">9.3</a>.  <a href="#name-rekeying-and-limits" class="internal xref">Rekeying and Limits</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
-            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-interoperability-and-versio" class="internal xref">Interoperability and Versioning</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.1">
+                <p id="section-toc.1-1.10.2.1.1"><a href="#section-10.1" class="auto internal xref">10.1</a>.  <a href="#name-negotiation-and-algorithm-n" class="internal xref">Negotiation and algorithm name</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.2">
+                <p id="section-toc.1-1.10.2.2.1"><a href="#section-10.2" class="auto internal xref">10.2</a>.  <a href="#name-negotiation-behavior" class="internal xref">Negotiation behavior</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.3">
+                <p id="section-toc.1-1.10.2.3.1"><a href="#section-10.3" class="auto internal xref">10.3</a>.  <a href="#name-compatibility-notes" class="internal xref">Compatibility notes</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.4">
+                <p id="section-toc.1-1.10.2.4.1"><a href="#section-10.4" class="auto internal xref">10.4</a>.  <a href="#name-interoperability-testing" class="internal xref">Interoperability testing</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
-            <p id="section-toc.1-1.11.1"><a href="#appendix-A" class="auto internal xref"></a><a href="#name-acknowledgments" class="internal xref">Acknowledgments</a></p>
+            <p id="section-toc.1-1.11.1"><a href="#section-11" class="auto internal xref">11</a>. <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
-            <p id="section-toc.1-1.12.1"><a href="#appendix-B" class="auto internal xref"></a><a href="#name-authors-address" class="internal xref">Author's Address</a></p>
+            <p id="section-toc.1-1.12.1"><a href="#section-12" class="auto internal xref">12</a>. <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
+            <p id="section-toc.1-1.13.1"><a href="#section-13" class="auto internal xref">13</a>. <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14">
+            <p id="section-toc.1-1.14.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-example-test-vectors" class="internal xref">Example Test Vectors</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15">
+            <p id="section-toc.1-1.15.1"><a href="#appendix-B" class="auto internal xref"></a><a href="#name-acknowledgments" class="internal xref">Acknowledgments</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16">
+            <p id="section-toc.1-1.16.1"><a href="#appendix-C" class="auto internal xref"></a><a href="#name-authors-address" class="internal xref">Author's Address</a></p>
 </li>
         </ul>
 </nav>
@@ -1182,8 +1249,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
       <h2 id="name-introduction">
 <a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
       </h2>
-<p id="section-1-1">The SSH protocol is integral to securing network communications, providing authentication, confidentiality, and integrity. While previous encryption methods have served their purpose, they are susceptible to certain vulnerabilities, particularly stemming from the reuse or manipulation of Nonce values. This document introduces a new encryption suite based on ChaCha20 and Poly1305, addressing these concerns by ensuring that Nonce generation is not solely reliant on sequence numbers.<a href="#section-1-1" class="pilcrow">¶</a></p>
-<p id="section-1-2">The proposed design utilizes a fixed Nonce prefix derived from the Key Exchange (KEX) process and an internal block counter to facilitate secure and efficient encryption and authentication.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-1">SSH relies on authenticated encryption for confidentiality and integrity in the Transport Layer. Prior SSH authenticated encryption constructions that used sequence numbers directly, or deterministically derived from them, as part or all of the nonce/initialization vector (IV) risked nonce reuse for stream ciphers under certain operational circumstances, such as active manipulation of sequence tracking by an on-path adversary, subtle bugs in sequence number handling, or problematic rekey semantics, which could have catastrophic consequences for confidentiality. This document specifies an authenticated encryption suite built around <strong>ChaCha20</strong> and <strong>Poly1305</strong> that separates a fixed, session-unique <strong>Nonce Prefix</strong> from the per-packet <strong>Block Counter</strong> used by ChaCha20. The fixed prefix is derived from the key exchange and remains immutable during a given <strong>Keying Interval</strong>. The per-packet block counter is derived from the SSH packet sequence number but is treated strictly as an internal block counter for ChaCha20, not as a nonce prefix component controllable by an adversary, with explicit handling to ensure its use cannot cause nonce reuse across different keying intervals or independent sessions. The construction conforms to existing ChaCha20/Poly1305 usage rules defined in <strong>RFC 7539</strong> and follows SSH Transport Layer packet semantics, defining key material layout, nonce construction, MAC key generation, packet encryption, verification, rekey triggers, and limits.<a href="#section-1-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="conventions-and-definitions">
@@ -1191,174 +1257,212 @@ svg :is([fill="white"], [fill^="#fff"]) {
       <h2 id="name-conventions-and-definitions">
 <a href="#section-2" class="section-number selfRef">2. </a><a href="#name-conventions-and-definitions" class="section-name selfRef">Conventions and Definitions</a>
       </h2>
-<p id="section-2-1">This document utilizes terms defined in RFC 2119 to indicate requirements. In this context, "Nonce" refers to a unique value that is used only once for cryptographic operations, while "Key Exchange" (KEX) designates the process by which cryptographic keys are generated and distributed between communicating parties.<a href="#section-2-1" class="pilcrow">¶</a></p>
+<p id="section-2-1">This specification uses the key words MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT, RECOMMENDED, and MAY as defined in RFC 2119. Fixed_Nonce_Prefix is a 96-bit (12-byte) constant value derived from the key exchange outputs for the life of a given SSH encryption key, produced by a KDF using the outputs of the SSH Key Exchange (KEX) and must be unique per direction (client-&gt;server and server-&gt;client) and per keying interval. Block_Counter is a 32-bit unsigned integer used as ChaCha20's block counter, derived from the 32-bit packet sequence number for a packet as defined in Section 6. Nonce is the 96-bit ChaCha20/Poly1305 nonce formed by concatenating Fixed_Nonce_Prefix // Block_Counter, expressed in network byte order for ChaCha20 input. K_E is the 32-byte (256-bit) ChaCha20 encryption key. K_MAC is a 16-byte seed value used to derive the Poly1305 one-time key stream (r and s) for the authentication tag; the final Poly1305 key is 32 bytes (r//s) as specified in RFC 7539 after bit masking of r. A Keying Interval is the lifetime of a specific set of K_E and K_MAC values, typically from a KEX until a rekey event.<a href="#section-2-1" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="core-cryptographic-primitives">
+<div id="goals-and-non-goals">
 <section id="section-3">
-      <h2 id="name-core-cryptographic-primitiv">
-<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-core-cryptographic-primitiv" class="section-name selfRef">Core Cryptographic Primitives</a>
+      <h2 id="name-goals-and-non-goals">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-goals-and-non-goals" class="section-name selfRef">Goals and Non-Goals</a>
       </h2>
-<p id="section-3-1">The encryption suite incorporates the following core cryptographic primitives:<a href="#section-3-1" class="pilcrow">¶</a></p>
-<table class="center" id="table-1">
-        <caption><a href="#table-1" class="selfRef">Table 1</a></caption>
-<thead>
-          <tr>
-            <th class="text-left" rowspan="1" colspan="1">Primitive</th>
-            <th class="text-left" rowspan="1" colspan="1">Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">
-              <strong>Stream Cipher</strong>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">ChaCha20, employing a 256-bit key and 20 rounds</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">
-              <strong>Message Authentication Code (MAC)</strong>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">Poly1305, used for integrity verification</td>
-          </tr>
-        </tbody>
-      </table>
+<p id="section-3-1">This document aims to provide an SSH authenticated encryption construction using <strong>ChaCha20</strong> and <strong>Poly1305</strong> consistent with <strong>RFC 7539</strong>, remove direct dependence of the nonce on sequence numbers alone by introducing a KEX-derived fixed nonce prefix per direction and per keying interval, provide explicit MAC key derivation and nonce usage that avoids nonce reuse across packets and across keying intervals, and specify rekey and usage limits to keep total ChaCha20 block usage within secure bounds. It does not aim to replace the SSH MAC-then-encrypt vs encrypt-then-MAC debates for legacy ciphers, instead specifying an <strong>AEAD</strong> construction that produces ciphertext and an authentication tag consistent with ChaCha20/Poly1305 AEAD usage, nor does it aim to change high-level SSH Transport packet framing, compression, or packet length semantics outside of what is necessary to specify AEAD usage.<a href="#section-3-1" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="key-and-nonce-management">
+<div id="cryptographic-primitives">
 <section id="section-4">
-      <h2 id="name-key-and-nonce-management">
-<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-key-and-nonce-management" class="section-name selfRef">Key and Nonce Management</a>
+      <h2 id="name-cryptographic-primitives">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-cryptographic-primitives" class="section-name selfRef">Cryptographic Primitives</a>
       </h2>
-<p id="section-4-1">In the proposed design, the traditional practice of using the sequence number as the Nonce is eliminated. Instead, a 96-bit (12-byte) Nonce structure, consistent with RFC 7539, is implemented.<a href="#section-4-1" class="pilcrow">¶</a></p>
-<p id="section-4-2">The key derivation process post-Key Exchange yields a 64-byte key, of which 48 bytes are utilized. The specific segments are outlined in the table below:<a href="#section-4-2" class="pilcrow">¶</a></p>
-<table class="center" id="table-2">
-        <caption><a href="#table-2" class="selfRef">Table 2</a></caption>
-<thead>
-          <tr>
-            <th class="text-left" rowspan="1" colspan="1">Key Segment</th>
-            <th class="text-left" rowspan="1" colspan="1">Length</th>
-            <th class="text-left" rowspan="1" colspan="1">Purpose</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">
-              <strong>K_E (Encryption Key)</strong>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">32 bytes (256 bits)</td>
-            <td class="text-left" rowspan="1" colspan="1">Utilized for ChaCha20 to encrypt data</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">
-              <strong>K_MAC (MAC Key Seed)</strong>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">16 bytes (128 bits)</td>
-            <td class="text-left" rowspan="1" colspan="1">Serves as the seed for Poly1305 keys</td>
-          </tr>
-          <tr>
-            <td class="text-left" rowspan="1" colspan="1">
-              <strong>Total Length</strong>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">
-              <strong>48 bytes</strong>
-</td>
-            <td class="text-left" rowspan="1" colspan="1">Reduced from the original 64 bytes</td>
-          </tr>
-        </tbody>
-      </table>
-<p id="section-4-4">It is notable that K_E is the sole encryption key, simplifying the key management process by eliminating the need for a secondary encryption key.<a href="#section-4-4" class="pilcrow">¶</a></p>
+<p id="section-4-1">The primitives used are the stream cipher <strong>ChaCha20</strong> with 20 rounds and a 256-bit key, and the MAC <strong>Poly1305</strong>, which produces 128-bit authentication tags. Implementations <strong>MUST</strong> use the ChaCha20 and Poly1305 constructions and bit and byte ordering exactly as specified in <strong>RFC 7539</strong>.<a href="#section-4-1" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="nonce-construction">
+<div id="key-derivation-and-key-material-layout">
 <section id="section-5">
-      <h2 id="name-nonce-construction">
-<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-nonce-construction" class="section-name selfRef">Nonce Construction</a>
+      <h2 id="name-key-derivation-and-key-mate">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-key-derivation-and-key-mate" class="section-name selfRef">Key Derivation and Key Material Layout</a>
       </h2>
-<p id="section-5-1">The Nonce utilized by ChaCha20 is crafted as follows:<a href="#section-5-1" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-5-2">
-<pre>
-N = Fixed_Nonce_Prefix || Block_Counter
-</pre><a href="#section-5-2" class="pilcrow">¶</a>
-</div>
-<p id="section-5-3">The "Fixed_Nonce_Prefix" is a 96-bit (12-byte) value derived from the hash output of the Key Exchange handshake. This prefix is meant to be fixed and immutable throughout the session, decoupling the Nonce from any attacker-manipulable variables such as sequence numbers.<a href="#section-5-3" class="pilcrow">¶</a></p>
-<p id="section-5-4">The "Block_Counter" is a 32-bit (4-byte) segment that uses the 32-bit sequence number as an internal counter for ChaCha20. This ensures compliance with RFC 7539 while maintaining the integrity of the Nonce construction.<a href="#section-5-4" class="pilcrow">¶</a></p>
+<p id="section-5-1">After SSH Key Exchange completes, the keying material calculated with the SSH KDF <strong>MUST</strong> output at least 48 bytes for this AEAD construction, apportioned as follows: <strong>K_E</strong> (32 bytes) is the ChaCha20 encryption key, and <strong>K_MAC</strong> (16 bytes) is the seed for Poly1305 key stream generation. Implementations <strong>MUST</strong> derive one independent set of these key materials per direction (client→server and server→client). The <strong>Fixed_Nonce_Prefix</strong> <strong>MUST</strong> also be derived from the KEX outputs separately for each direction. The KDF inputs used to derive $\mathbf{K_E}$, $\mathbf{K_MAC}$, and $\mathbf{Fixed_Nonce_Prefix}$ <strong>MUST</strong> include all standard SSH KDF inputs and <strong>MUST</strong> be clearly documented by the implementation. If a KDF yields more than 48 bytes, the additional output <strong>MUST NOT</strong> be used for other cryptographic purposes unless explicitly specified; implementations <strong>SHOULD</strong> consume only the 48 bytes required for these keys and derive any additional per-session values from the same KDF in a deterministic, documented manner.<a href="#section-5-1" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="mac-key-stream-generation">
+<div id="nonce-construction-and-usage">
 <section id="section-6">
-      <h2 id="name-mac-key-stream-generation">
-<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-mac-key-stream-generation" class="section-name selfRef">MAC Key Stream Generation</a>
+      <h2 id="name-nonce-construction-and-usag">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-nonce-construction-and-usag" class="section-name selfRef">Nonce Construction and Usage</a>
       </h2>
-<p id="section-6-1">Poly1305 requires a 256-bit key consisting of values r and s. The process to derive this key employs K_E and a zero Nonce. The steps are outlined as follows:<a href="#section-6-1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-6-2">
-<li id="section-6-2.1">
-          <p id="section-6-2.1.1">K_MAC (16 bytes) is zero-padded to 32 bytes, forming the seed for both Poly1305 keys r and s.<a href="#section-6-2.1.1" class="pilcrow">¶</a></p>
-</li>
-        <li id="section-6-2.2">
-          <p id="section-6-2.2.1">The ChaCha20 transformation is applied as follows:<a href="#section-6-2.2.1" class="pilcrow">¶</a></p>
-<p id="section-6-2.2.2"><code>
- Key: K_E
- Nonce: Fixed_Nonce_Prefix || 0
- Internal Block Counter: 0
-</code><a href="#section-6-2.2.2" class="pilcrow">¶</a></p>
-</li>
-        <li id="section-6-2.3">
-          <p id="section-6-2.3.1">The first 32 bytes produced by the ChaCha20 transformation are extracted and assigned as the final r and s values for Poly1305.<a href="#section-6-2.3.1" class="pilcrow">¶</a></p>
-</li>
-        <li id="section-6-2.4">
-          <p id="section-6-2.4.1">The required bit-clearing operation for r is performed in accordance with Poly1305 specifications.<a href="#section-6-2.4.1" class="pilcrow">¶</a></p>
-</li>
-      </ol>
+<p id="section-6-1">Nonce construction is: $\mathbf{Nonce = Fixed_Nonce_Prefix \parallel Block_Counter}$. $\mathbf{Fixed_Nonce_Prefix}$ is 12 bytes (96 bits) and is constant for the keying interval and per direction. $\mathbf{Block_Counter}$ is 4 bytes (32 bits) and is derived from the SSH packet sequence number. The ChaCha20 nonce input <strong>MUST</strong> be formed by placing <strong>Fixed_Nonce_Prefix</strong> as the high-order 12 bytes followed by the 4-byte $\mathbf{Block_Counter}$ in little-endian form if the underlying ChaCha20 implementation expects the RFC 7539 96-bit nonce followed by a 32-bit block counter internally. The effective 128-bit ChaCha20 input state comprises: ChaCha20 32-bit block counter (least significant 32 bits) = $\mathbf{Block_Counter}$, and ChaCha20 96-bit nonce (most significant 96 bits) = $\mathbf{Fixed_Nonce_Prefix}$.<a href="#section-6-1" class="pilcrow">¶</a></p>
+<div id="blockcounter-derivation">
+<section id="section-6.1">
+        <h3 id="name-block_counter-derivation">
+<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-block_counter-derivation" class="section-name selfRef">Block_Counter derivation</a>
+        </h3>
+<p id="section-6.1-1">The $\mathbf{Block_Counter}$ for a packet with SSH sequence number $\mathbf{S}$ (a 32-bit unsigned integer that increments by 1 for each transported SSH packet) is defined as: $\mathbf{Block_Counter = S}$. Implementations <strong>MUST</strong> treat $\mathbf{S}$ strictly as an internal ChaCha20 block counter and <strong>MUST NOT</strong> use $\mathbf{S}$ alone as the nonce for any other primitive or in any manner that may cause reuse across keying intervals. Because $\mathbf{Block_Counter}$ is only 32 bits, single keying intervals <strong>MUST</strong> enforce limits on the number of packets to avoid block counter wraparound.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="packet-processing-flow">
+<div id="fixednonceprefix-derivation">
+<section id="section-6.2">
+        <h3 id="name-fixed_nonce_prefix-derivati">
+<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-fixed_nonce_prefix-derivati" class="section-name selfRef">Fixed_Nonce_Prefix derivation</a>
+        </h3>
+<p id="section-6.2-1">$\mathbf{Fixed_Nonce_Prefix}$ <strong>MUST</strong> be derived from the SSH KEX output and session identifier using the KDF in a way that ensures uniqueness per direction and per keying interval. An example derivation is: $\mathbf{Fixed_Nonce_Prefix := KDF(session_id, \text{"chacha20-poly1305-nonce"}, direction_identifier)}$ where $\mathbf{direction_identifier}$ is 'C' for client→server and 'S' for server→client, and the KDF returns 12 bytes. Implementations <strong>MUST</strong> document the exact KDF label and method used.<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="constraints-and-rationale">
+<section id="section-6.3">
+        <h3 id="name-constraints-and-rationale">
+<a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-constraints-and-rationale" class="section-name selfRef">Constraints and rationale</a>
+        </h3>
+<p id="section-6.3-1">Using a fixed per-direction per-keying-interval prefix prevents an attacker who can manipulate sequence number semantics from causing nonce reuse across keying intervals or sessions. Any attacker who attempts to replay or reorder packets without matching $\mathbf{Fixed_Nonce_Prefix}$ will induce decryption failures because the $\mathbf{Block_Counter}$ is used only as the per-packet ChaCha20 block counter.<a href="#section-6.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="poly1305-key-derivation-mac-key-stream">
 <section id="section-7">
-      <h2 id="name-packet-processing-flow">
-<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-packet-processing-flow" class="section-name selfRef">Packet Processing Flow</a>
+      <h2 id="name-poly1305-key-derivation-mac">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-poly1305-key-derivation-mac" class="section-name selfRef">Poly1305 Key Derivation (MAC Key Stream)</a>
       </h2>
-<p id="section-7-1">When sending an SSH packet P, which contains Length, Padding, and Payload, the processing flow is as follows:<a href="#section-7-1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-7-2">
-<li id="section-7-2.1">
-          <p id="section-7-2.1.1">Generate the Poly1305 key using K_E and the constructed Nonce where the block counter is set to 0.<a href="#section-7-2.1.1" class="pilcrow">¶</a></p>
-</li>
-        <li id="section-7-2.2">
-          <p id="section-7-2.2.1">Construct a 12-byte Nonce formed by concatenating the Fixed_Nonce_Prefix with the current Sequence_Number.<a href="#section-7-2.2.1" class="pilcrow">¶</a></p>
-</li>
-        <li id="section-7-2.3">
-          <p id="section-7-2.3.1">Encrypt the packet P using K_E along with the constructed Nonce, resulting in the ciphertext C.<a href="#section-7-2.3.1" class="pilcrow">¶</a></p>
-</li>
-        <li id="section-7-2.4">
-          <p id="section-7-2.4.1">Authenticate the ciphertext C using the Poly1305 MAC with the derived MAC_Key. The authenticated data (A) is required to be an empty string to maintain simplicity as permitted by RFC 7539. The authentication tag is generated based on the ciphertext C.<a href="#section-7-2.4.1" class="pilcrow">¶</a></p>
-</li>
-        <li id="section-7-2.5">
-          <p id="section-7-2.5.1">Finally, concatenate the ciphertext C and the authentication tag to form the complete output packet that is sent.<a href="#section-7-2.5.1" class="pilcrow">¶</a></p>
-</li>
-      </ol>
-<p id="section-7-3">The recipient will reverse these steps to authenticate and decrypt the incoming packet, ensuring the integrity and confidentiality of the transmitted data.<a href="#section-7-3" class="pilcrow">¶</a></p>
+<p id="section-7-1">Poly1305 requires a 32-byte one-time key per <strong>RFC 7539</strong>, consisting of 16 bytes <strong>r</strong> (with specific bit clamping) followed by 16 bytes <strong>s</strong>. The one-time Poly1305 key used to authenticate packets during a keying interval <strong>MUST</strong> be derived using <strong>K_E</strong>, the <strong>Fixed_Nonce_Prefix</strong>, and a zero <strong>Block_Counter</strong>. The derivation steps involve constructing a 12-byte <strong>Nonce_Derivation = Fixed_Nonce_Prefix // 0x00000000</strong>, initializing ChaCha20 with <strong>Key = K_E</strong> and <strong>Nonce = Nonce_Derivation</strong> with an internal block counter set to 0, generating the first 64 bytes of the ChaCha20 stream (or at minimum the first 32 bytes required), taking the first 32 bytes as the Poly1305 key <strong>K_poly</strong>, and applying Poly1305 <strong>r</strong> masking as per RFC 7539. Implementations <strong>MUST</strong> ensure the ChaCha20 stream used for Poly1305 key derivation uses the same key <strong>K_E</strong> and the same <strong>Fixed_Nonce_Prefix</strong> as used for packet encryption, with <strong>Block_Counter</strong> set to zero for this derivation. The use of a zero block counter ensures the Poly1305 key is unique per keying interval and distinct from per-packet block counters used for encryption.<a href="#section-7-1" class="pilcrow">¶</a></p>
+<div id="kmac-handling">
+<section id="section-7.1">
+        <h3 id="name-k_mac-handling">
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-k_mac-handling" class="section-name selfRef">K_MAC handling</a>
+        </h3>
+<p id="section-7.1-1"><strong>K_MAC</strong> (16 bytes) is <strong>NOT</strong> used directly as the final Poly1305 key, but is reserved as a seed that <strong>MAY</strong> be incorporated into the ChaCha20 initial block for additional domain separation, only if this procedure is deterministic, documented, and ensures the resulting Poly1305 key is unique per keying interval and per direction. The mandatory minimum is that <strong>K_E</strong> and <strong>Fixed_Nonce_Prefix</strong> are used as described to produce the Poly1305 key; any additional use of <strong>K_MAC</strong> <strong>MUST NOT</strong> violate ChaCha20 or Poly1305 assumptions and <strong>MUST</strong> be clearly specified. Implementations <strong>MUST</strong> store the derived Poly1305 key (<strong>r//s</strong>) with appropriate protections and <strong>MUST</strong> discard the ChaCha20 keystream material after use.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="per-packet-mac-usage">
+<section id="section-7.2">
+        <h3 id="name-per-packet-mac-usage">
+<a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-per-packet-mac-usage" class="section-name selfRef">Per-packet MAC usage</a>
+        </h3>
+<p id="section-7.2-1">The Poly1305 key derived above is used as a one-time key per packet for the entire keying interval. Implementations <strong>MUST NOT</strong> reuse a Poly1305 key across different keying intervals. This usage model follows RFC 7539 section recommendations for <strong>AEAD</strong> construction when ChaCha20 is used to generate the Poly1305 key once per keying interval and per direction, and rekeying must be enforced before the Poly1305 key is used beyond recommended limits.<a href="#section-7.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="alternative-per-packet-poly1305-key">
+<section id="section-7.3">
+        <h3 id="name-alternative-per-packet-poly">
+<a href="#section-7.3" class="section-number selfRef">7.3. </a><a href="#name-alternative-per-packet-poly" class="section-name selfRef">Alternative: per-packet Poly1305 key</a>
+        </h3>
+<p id="section-7.3-1">Implementations <strong>MAY</strong> instead choose to derive a Poly1305 key per packet by using <strong>Block_Counter = 0</strong> to derive <strong>r//s</strong> then incrementing the internal ChaCha20 counter for each packet key derivation; this must still ensure Poly1305 keys are never reused and ChaCha20 block counter consumption limits are observed. If an implementation derives a per-packet Poly1305 key with differing <strong>Block_Counter</strong> values, those values <strong>MUST NOT</strong> collide with those used for the packet encryption stream for the same nonce and key.<a href="#section-7.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="packet-processing-encryption-and-authentication">
+<section id="section-8">
+      <h2 id="name-packet-processing-encryptio">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-packet-processing-encryptio" class="section-name selfRef">Packet Processing: Encryption and Authentication</a>
+      </h2>
+<p id="section-8-1">To produce the on-wire ciphertext and authentication tag, a packet with plaintext $\mathbf{P}$ and sequence number $\mathbf{S}$ is processed using $\mathbf{K_E}$, $\mathbf{Fixed_Nonce_Prefix}$, and the derived Poly1305 key $\mathbf{K_poly}$. The steps are: Compute $\mathbf{Block_Counter = S}$; construct $\mathbf{Nonce = Fixed_Nonce_Prefix \parallel Block_Counter}$; encrypt $\mathbf{P}$ using ChaCha20 with $\mathbf{K_E}$ and $\mathbf{Nonce}$ starting at block counter = $\mathbf{Block_Counter}$ to get ciphertext $\mathbf{C}$; compute the Poly1305 tag $\mathbf{T}$ over $\mathbf{A}$ = empty string and the ciphertext $\mathbf{C}$ as $\mathbf{T = Poly1305(K_poly, A \parallel C)}$, following RFC 7539 for padding and length encoding; and output on the wire $\mathbf{C \parallel T}$. The wire format <strong>MUST</strong> place the 16-byte Poly1305 tag $\mathbf{T}$ immediately following the ciphertext $\mathbf{C}$.<a href="#section-8-1" class="pilcrow">¶</a></p>
+<div id="notes-on-aad">
+<section id="section-8.1">
+        <h3 id="name-notes-on-aad">
+<a href="#section-8.1" class="section-number selfRef">8.1. </a><a href="#name-notes-on-aad" class="section-name selfRef">Notes on AAD</a>
+        </h3>
+<p id="section-8.1-1">This construction uses an empty additional authenticated data ($\mathbf{A = empty}$) to reduce complexity and stay consistent with RFC 7539 permitted usages. Implementations <strong>MUST</strong> ensure any additional SSH fields requiring authentication are included in either the plaintext packet $\mathbf{P}$ before encryption or reflected via standard SSH transport layer validation; they <strong>MUST NOT</strong> rely on implicit inclusion of sequence numbers in AAD.<a href="#section-8.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="ordering-and-stream-alignment">
+<section id="section-8.2">
+        <h3 id="name-ordering-and-stream-alignme">
+<a href="#section-8.2" class="section-number selfRef">8.2. </a><a href="#name-ordering-and-stream-alignme" class="section-name selfRef">Ordering and stream alignment</a>
+        </h3>
+<p id="section-8.2-1">ChaCha20 encryption <strong>MUST</strong> be performed in full-packet units using the nonce containing the packet's $\mathbf{Block_Counter}$. Implementers <strong>MUST</strong> ensure the ChaCha20 internal counter and block generation are aligned consistently with the RFC 7539 block counter model so that the derived Poly1305 key material (generated at $\mathbf{Block_Counter = 0}$ for MAC derivation) does not overlap with blocks consumed for packet encryption.<a href="#section-8.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="packet-processing-reception-authentication-and-decryption">
+<section id="section-9">
+      <h2 id="name-packet-processing-reception">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-packet-processing-reception" class="section-name selfRef">Packet Processing: Reception, Authentication, and Decryption</a>
+      </h2>
+<p id="section-9-1">On receipt of a packet $\mathbf{C \parallel T}$, the recipient uses the expected sequence number $\mathbf{S}$ and local keys/derived values. The steps are: Compute $\mathbf{Block_Counter = S}$; construct $\mathbf{Nonce = Fixed_Nonce_Prefix \parallel Block_Counter}$; compute the Poly1305 tag $\mathbf{T'} = \mathbf{Poly1305(K_poly, A \parallel C)}$ with $\mathbf{A = empty}$. If $\mathbf{T'}$ does not equal $\mathbf{T}$, the packet <strong>MUST</strong> be treated as failed authentication, and the implementation <strong>MUST</strong> follow SSH failure handling. If authentication succeeds, decrypt $\mathbf{C}$ using ChaCha20 with $\mathbf{K_E}$ and $\mathbf{Nonce}$, producing plaintext $\mathbf{P}$, which is then processed as a normal SSH packet.<a href="#section-9-1" class="pilcrow">¶</a></p>
+<div id="timing-and-constant-time-verification">
+<section id="section-9.1">
+        <h3 id="name-timing-and-constant-time-ve">
+<a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-timing-and-constant-time-ve" class="section-name selfRef">Timing and constant-time verification</a>
+        </h3>
+<p id="section-9.1-1">Poly1305 tag comparisons <strong>MUST</strong> be performed in <strong>constant time</strong> with respect to the compared values to avoid leaking authentication failures via timing side channels. Decryption <strong>SHOULD</strong> only proceed after the authentication tag has been successfully verified.<a href="#section-9.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="replay-and-out-of-order-packets">
+<section id="section-9.2">
+        <h3 id="name-replay-and-out-of-order-pac">
+<a href="#section-9.2" class="section-number selfRef">9.2. </a><a href="#name-replay-and-out-of-order-pac" class="section-name selfRef">Replay and out-of-order packets</a>
+        </h3>
+<p id="section-9.2-1">Because $\mathbf{Block_Counter}$ is derived from the SSH sequence number, out-of-order delivery or replays will result in a $\mathbf{Block_Counter}$ that does not match the receiver's expected $\mathbf{S}$. Implementations <strong>MUST</strong> follow SSH transport layer replay window semantics and sequence number handling. Acceptance of out-of-order packets requires authentication verification using the $\mathbf{Block_Counter}$ derived from the sequence number in the packet context; implementations <strong>MUST</strong> ensure that sequence number handling does not permit reuse of $\mathbf{Block_Counter}$ values that would cause ChaCha20 nonce reuse.<a href="#section-9.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="rekeying-and-limits">
+<section id="section-9.3">
+        <h3 id="name-rekeying-and-limits">
+<a href="#section-9.3" class="section-number selfRef">9.3. </a><a href="#name-rekeying-and-limits" class="section-name selfRef">Rekeying and Limits</a>
+        </h3>
+<p id="section-9.3-1">ChaCha20/Poly1305 security depends on never reusing the same $\mathbf{(key, nonce)}$ pair and limiting keystream consumption. Implementations <strong>MUST</strong> enforce limits and rekeying policies: Rekey before $2^{32}$ packets would be sent with the same $\mathbf{Fixed_Nonce_Prefix}$ and $\mathbf{K_E}$ in a single direction (practical limit: rekey well before sequence number approaches $2^{32} - 1$). Implementations <strong>MUST</strong> account for multiple 64-byte ChaCha20 blocks consumed per packet when tracking total blocks used. Rekey before more than $2^{32} - 1$ ChaCha20 blocks have been generated under a single $\mathbf{K_E/Fixed_Nonce_Prefix}$ pair. Because the Poly1305 key is unique per keying interval, implementations <strong>MUST</strong> ensure the key is never reused across different keying intervals. Implementations <strong>SHOULD</strong> trigger rekeying based on whichever comes first: number of packets (e.g., $2^{31}$ packets), number of bytes (e.g., $2^{40}$ bytes), elapsed time (e.g., 1 hour), or explicit administrative policy; these thresholds <strong>MUST</strong> be conservative relative to the theoretical limits. A conservative policy is to rekey when $\mathbf{S}$ approaches $2^{31}$ packets or earlier to avoid $\mathbf{Block_Counter}$ reuse, which would cause catastrophic keystream reuse. When counting ChaCha20 block usage, a packet of size $N$ bytes (ciphertext) consumes $\text{ceil}(N / 64)$ blocks, and the total blocks generated for both packet encryption and Poly1305 key derivation <strong>MUST</strong> be tracked, with rekeying mandated before the total approaches $2^{32}$.<a href="#section-9.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="interoperability-and-versioning">
+<section id="section-10">
+      <h2 id="name-interoperability-and-versio">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-interoperability-and-versio" class="section-name selfRef">Interoperability and Versioning</a>
+      </h2>
+<div id="negotiation-and-algorithm-name">
+<section id="section-10.1">
+        <h3 id="name-negotiation-and-algorithm-n">
+<a href="#section-10.1" class="section-number selfRef">10.1. </a><a href="#name-negotiation-and-algorithm-n" class="section-name selfRef">Negotiation and algorithm name</a>
+        </h3>
+<p id="section-10.1-1">This <strong>AEAD</strong> construction <strong>MUST</strong> be exposed through SSH algorithm negotiation. Implementations <strong>SHOULD</strong> introduce a clear algorithm identifier in the SSH Transport Layer encryption algorithm list, for example: $\mathbf{chacha20-poly1305-fixedprefix-00@scssh.github.io}$.<a href="#section-10.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="negotiation-behavior">
+<section id="section-10.2">
+        <h3 id="name-negotiation-behavior">
+<a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-negotiation-behavior" class="section-name selfRef">Negotiation behavior</a>
+        </h3>
+<p id="section-10.2-1">When negotiating ciphersuites, implementations <strong>MUST</strong> follow SSH Algorithm Negotiation rules. Fallback to existing, agreed algorithms <strong>MAY</strong> occur if the peer does not support the fixed-prefix variant. Implementations <strong>MUST</strong> document differences from other chacha20-poly1305 variants.<a href="#section-10.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="compatibility-notes">
+<section id="section-10.3">
+        <h3 id="name-compatibility-notes">
+<a href="#section-10.3" class="section-number selfRef">10.3. </a><a href="#name-compatibility-notes" class="section-name selfRef">Compatibility notes</a>
+        </h3>
+<p id="section-10.3-1">To ensure interoperability, implementers <strong>MUST</strong> clearly document: the exact <strong>Fixed_Nonce_Prefix</strong> derivation label and KDF inputs; the endianness and byte ordering for <strong>Block_Counter</strong> in the nonce (little-endian or network order); and the <strong>Poly1305 key derivation details</strong> (which ChaCha20 blocks were used, and whether <strong>K_MAC</strong> is mixed into derivation).<a href="#section-10.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="interoperability-testing">
+<section id="section-10.4">
+        <h3 id="name-interoperability-testing">
+<a href="#section-10.4" class="section-number selfRef">10.4. </a><a href="#name-interoperability-testing" class="section-name selfRef">Interoperability testing</a>
+        </h3>
+<p id="section-10.4-1">Implementations <strong>SHOULD</strong> provide test vectors covering key derivation, fixed nonce prefix derivation, Poly1305 key generation, encryption of simple packets, and tag verification to facilitate interoperability testing.<a href="#section-10.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 <div id="security-considerations">
-<section id="section-8">
+<section id="section-11">
       <h2 id="name-security-considerations">
-<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+<a href="#section-11" class="section-number selfRef">11. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
       </h2>
-<p id="section-8-1">The design outlined in this document aims to significantly enhance the security of SSH communications by addressing specific vulnerabilities. The fixed Nonce prefix effectively limits the potential for Nonce reuse attacks, particularly in scenarios involving manipulated sequence numbers. Any discrepancies in Nonce values between sender and receiver will result in decryption failure, thereby offering immediate detection of tampering.<a href="#section-8-1" class="pilcrow">¶</a></p>
-<p id="section-8-2">Moreover, by decoupling the Nonce from sequence numbers, the possibility of predictable Nonce generation is minimized. This reinforces the overall robustness of the encryption process.<a href="#section-8-2" class="pilcrow">¶</a></p>
+<p id="section-11-1">The central risk for ChaCha20, reuse of the same $\mathbf{(K_E, Nonce)}$ pair, is prevented by binding $\mathbf{Fixed_Nonce_Prefix}$ to the KEX and mandating rekeying before $\mathbf{Block_Counter}$ wraparound. Implementers <strong>MUST</strong> ensure $\mathbf{Fixed_Nonce_Prefix}$ is unique per direction and per keying interval and that rekeying is enforced well before any 32-bit counter wrap. Poly1305 must never be used with the same one-time key more than once; this specification makes the Poly1305 key unique per keying interval, and implementations <strong>MUST NOT</strong> reuse keys across keying intervals or derive per-packet Poly1305 keys in a manner that collides with ChaCha20 stream blocks used for encryption. Tag comparisons <strong>MUST</strong> use <strong>constant-time comparison routines</strong>, key material must be protected, and implementations should follow platform best practices to mitigate side channels. $\mathbf{Block_Counter}$ is tied to the SSH sequence number, and implementations <strong>MUST</strong> enforce <strong>replay protection</strong> consistent with SSH Transport semantics, ensuring that acceptance of out-of-order packets does not cause reuse of a $\mathbf{Block_Counter}$ value already consumed under the same $\mathbf{K_E/Fixed_Nonce_Prefix}$. $\mathbf{Fixed_Nonce_Prefix}$ must be derived using the SSH-specified KDF or an equivalent deterministic KDF with documented labels and inputs, ensuring uniqueness and unpredictability. Since authentication must be verified before decryption, malformed packets are rejected early, and implementations should rate-limit expensive cryptographic operations if subject to DoS attacks.<a href="#section-11-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="iana-considerations">
-<section id="section-9">
+<section id="section-12">
       <h2 id="name-iana-considerations">
-<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+<a href="#section-12" class="section-number selfRef">12. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
       </h2>
-<p id="section-9-1">This document has no IANA actions.<a href="#section-9-1" class="pilcrow">¶</a></p>
+<p id="section-12-1">This document requests no IANA actions. Implementations planning to register a distinct algorithm identifier for this construction <strong>SHOULD</strong> follow IANA registration procedures for SSH algorithm names and document the identifier, semantics, and any required test vectors.<a href="#section-12-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="sec-normative-references">
-<section id="section-10">
+<section id="section-13">
       <h2 id="name-normative-references">
-<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+<a href="#section-13" class="section-number selfRef">13. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
       </h2>
 <dl class="references">
 <dt id="RFC7539">[RFC7539]</dt>
@@ -1368,16 +1472,92 @@ N = Fixed_Nonce_Prefix || Block_Counter
 </dl>
 </section>
 </div>
-<div id="acknowledgments">
+<div id="example-test-vectors">
 <section id="appendix-A">
+      <h2 id="name-example-test-vectors">
+<a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-example-test-vectors" class="section-name selfRef">Example Test Vectors</a>
+      </h2>
+<p id="appendix-A-1">This appendix provides example test vectors illustrating key derivation, Fixed_Nonce_Prefix derivation, Poly1305 key generation, encryption, and tag verification. Implementations SHOULD use these vectors for interoperability testing and MUST publish additional vectors that match their exact KDF label usage and byte‑ordering conventions.<a href="#appendix-A-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-1">
+        <caption><a href="#table-1" class="selfRef">Table 1</a></caption>
+<thead>
+          <tr>
+            <th class="text-left" rowspan="1" colspan="1">Vector</th>
+            <th class="text-left" rowspan="1" colspan="1">Value</th>
+            <th class="text-left" rowspan="1" colspan="1"> </th>
+            <th class="text-left" rowspan="1" colspan="1"> </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">K_E (hex)</td>
+            <td class="text-left" rowspan="1" colspan="1">000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">K_MAC (hex)</td>
+            <td class="text-left" rowspan="1" colspan="1">202122232425262728292a2b2c2d2e2f</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Fixed_Nonce_Prefix (hex)</td>
+            <td class="text-left" rowspan="1" colspan="1">303132333435363738393a3b3c3d3e3f404142</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Packet sequence S</td>
+            <td class="text-left" rowspan="1" colspan="1">1</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Block_Counter (hex)</td>
+            <td class="text-left" rowspan="1" colspan="1">00000001</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Nonce (hex)</td>
+            <td class="text-left" rowspan="1" colspan="1">Fixed_Nonce_Prefix</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1">00000001</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Plaintext P (hex)</td>
+            <td class="text-left" rowspan="1" colspan="1">0700000001020304050607 (example SSH packet bytes)</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Ciphertext C (hex)</td>
+            <td class="text-left" rowspan="1" colspan="1">[to be computed by implementation]</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Poly1305 Tag T (hex)</td>
+            <td class="text-left" rowspan="1" colspan="1">[to be computed by implementation]</td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+            <td class="text-left" rowspan="1" colspan="1"> </td>
+          </tr>
+        </tbody>
+      </table>
+<p id="appendix-A-3">Note: The example values above are illustrative. Implementers MUST publish exact computed ciphertext and tag values matching their KDF and nonce byte order choices.<a href="#appendix-A-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="acknowledgments">
+<section id="appendix-B">
       <h2 id="name-acknowledgments">
 <a href="#name-acknowledgments" class="section-name selfRef">Acknowledgments</a>
       </h2>
-<p id="appendix-A-1">The author acknowledges the contributions of the cryptographic community, particularly those involved in the development of the SSH protocol and the advances in AEAD constructions. Special thanks are also extended to the individuals whose feedback has helped refine this design.<a href="#appendix-A-1" class="pilcrow">¶</a></p>
+<p id="appendix-B-1">The author acknowledges the contributions of the cryptographic community, particularly those involved in the development of the SSH protocol and the advances in AEAD constructions. Special thanks are also extended to the individuals whose feedback has helped refine this design.<a href="#appendix-B-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="authors-addresses">
-<section id="appendix-B">
+<section id="appendix-C">
       <h2 id="name-authors-address">
 <a href="#name-authors-address" class="section-name selfRef">Author's Address</a>
       </h2>

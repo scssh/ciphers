@@ -6,7 +6,7 @@ category: exp
 docname: draft-harper-sshm-chacha20-poly1305-latest
 submissiontype: independent  # also: "independent", "editorial", "IAB", or "IRTF"
 v: 3
-area: SEC
+area: "Security"
 keyword: SSH
 
 author:

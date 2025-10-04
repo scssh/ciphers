@@ -40,6 +40,26 @@ jobs:
         key: i-d-${{ steps.setup.outputs.date }}
         restore-keys: i-d-
 
+    # --- 新增的自动修复步骤 ---
+    - name: "Automatic Lint and Fix"
+      # 使用同一个 i-d-template 镜像来运行 make fix-lint
+      uses: martinthomson/i-d-template@v1
+      with:
+        make: fix-lint
+        # 不需要 token，因为只是修改本地文件
+    
+    # --- 新增步骤：检查并提交修复后的代码 ---
+    - name: "Commit Lint Fixes"
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "Fix: Automated linting (trailing whitespace cleanup)"
+        # 确保只有在 `fix-lint` 真的修改了文件时才提交
+        commit_options: '--no-edit --amend --skip-ci'
+        # 确保提交在当前的分支上
+        branch: ${{ github.head_ref || github.ref_name }}
+    
+    # -----------------------------
+
     - name: "Build Drafts"
       uses: martinthomson/i-d-template@v1
       with:

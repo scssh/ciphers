@@ -54,4 +54,4 @@ This document has no IANA actions.
 # Acknowledgments
 {:numbered="false"}
 
-TODO acknowledge.
+The author acknowledges the contributions of the cryptographic community, particularly those involved in the development of the SSH protocol and the advances in AEAD constructions. Special thanks are also extended to the individuals whose feedback has helped refine this design.

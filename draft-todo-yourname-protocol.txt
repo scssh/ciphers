@@ -2,34 +2,18 @@
 
 
 
-WG Working Group                                              Y. N. Here
-Internet-Draft                                    Your Organization Here
-Intended status: Informational                            4 October 2025
+Network Working Group                                          S. Harper
+Internet-Draft                                               Independent
+Intended status: Experimental                             4 October 2025
 Expires: 7 April 2026
 
 
                            TODO - Your title
-                  draft-todo-yourname-protocol-latest
+               draft-harper-sshm-chacha20-poly1305-latest
 
 Abstract
 
    TODO Abstract
-
-About This Document
-
-   This note is to be removed before publishing as an RFC.
-
-   The latest revision of this draft can be found at
-   https://example.com/LATEST.  Status information for this document may
-   be found at https://datatracker.ietf.org/doc/draft-todo-yourname-
-   protocol/.
-
-   Discussion of this document takes place on the WG Working Group
-   mailing list (mailto:WG@example.com), which is archived at
-   https://example.com/WG.
-
-   Source for this draft and an issue tracker can be found at
-   https://github.com/USER/REPO.
 
 Status of This Memo
 
@@ -57,10 +41,7 @@ Copyright Notice
    Provisions Relating to IETF Documents (https://trustee.ietf.org/
    license-info) in effect on the date of publication of this document.
    Please review these documents carefully, as they describe your rights
-   and restrictions with respect to this document.  Code Components
-   extracted from this document must include Revised BSD License text as
-   described in Section 4.e of the Trust Legal Provisions and are
-   provided without warranty as described in the Revised BSD License.
+   and restrictions with respect to this document.
 
 Table of Contents
 
@@ -109,6 +90,6 @@ Acknowledgments
 
 Author's Address
 
-   Your Name Here
-   Your Organization Here
-   Email: your.email@example.com
+   Sophie Harper
+   Independent
+   Email: sphpr@proton.me

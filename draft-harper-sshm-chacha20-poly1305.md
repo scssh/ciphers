@@ -79,9 +79,13 @@ Poly1305 requires a 256-bit key consisting of values r and s. The process to der
 
 1. K_MAC (16 bytes) is zero-padded to 32 bytes, forming the seed for both Poly1305 keys r and s.
 2. The ChaCha20 transformation is applied as follows:
-    * **Key:** K_E
-    * **Nonce:** Fixed_Nonce_Prefix || 0
-    * **Internal Block Counter:** 0
+
+    ```
+    Key: K_E
+    Nonce: Fixed_Nonce_Prefix || 0
+    Internal Block Counter: 0
+    ```
+
 3. The first 32 bytes produced by the ChaCha20 transformation are extracted and assigned as the final r and s values for Poly1305.
 4. The required bit-clearing operation for r is performed in accordance with Poly1305 specifications.
 

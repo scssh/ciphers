@@ -13,7 +13,24 @@ Expires: 7 April 2026
 
 Abstract
 
-   TODO Abstract
+   This document presents a new encryption suite,
+   chacha20-poly1305-00@scssh.github.io, for the SSH protocol which
+   utilizes ChaCha20 as the stream cipher and Poly1305 as the message
+   authentication code.  By incorporating the Authenticated Encryption
+   with Associated Data construction from RFC 7539, this design replaces
+   the existing dependency on sequence numbers for Nonce generation,
+   thus enhancing both security and operational efficiency.
+
+Discussion Venues
+
+   This note is to be removed before publishing as an RFC.
+
+   Discussion of this document takes place on the Secure Shell
+   Maintenance Working Group mailing list (ssh@ietf.org), which is
+   archived at https://mailarchive.ietf.org/arch/browse/ssh/.
+
+   Source for this draft and an issue tracker can be found at
+   https://github.com/scssh/ciphers.
 
 Status of This Memo
 

@@ -7,7 +7,7 @@
 <title>Private Encryption Suite for SSH Using ChaCha20-Poly1305 Version 00</title>
 <meta content="Sophie Harper" name="author">
 <meta content="
-       TODO Abstract 
+       This document presents a new encryption suite, chacha20-poly1305-00@scssh.github.io, for the SSH protocol which utilizes ChaCha20 as the stream cipher and Poly1305 as the message authentication code. By incorporating the Authenticated Encryption with Associated Data construction from RFC 7539, this design replaces the existing dependency on sequence numbers for Nonce generation, thus enhancing both security and operational efficiency. 
     " name="description">
 <meta content="xml2rfc 3.30.2" name="generator">
 <meta content="SSH" name="keyword">
@@ -1079,7 +1079,18 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <h1 id="title">Private Encryption Suite for SSH Using ChaCha20-Poly1305 Version 00</h1>
 <section id="section-abstract">
       <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
-<p id="section-abstract-1">TODO Abstract<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-1">This document presents a new encryption suite, chacha20-poly1305-00@scssh.github.io, for the SSH protocol which utilizes ChaCha20 as the stream cipher and Poly1305 as the message authentication code. By incorporating the Authenticated Encryption with Associated Data construction from RFC 7539, this design replaces the existing dependency on sequence numbers for Nonce generation, thus enhancing both security and operational efficiency.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+</section>
+<section class="note rfcEditorRemove" id="section-note.1">
+      <h2 id="name-discussion-venues">
+<a href="#name-discussion-venues" class="section-name selfRef">Discussion Venues</a>
+      </h2>
+<p id="section-note.1-1">This note is to be removed before publishing as an RFC.<a href="#section-note.1-1" class="pilcrow">¶</a></p>
+<p id="section-note.1-2">Discussion of this document takes place on the
+    Secure Shell Maintenance Working Group mailing list (ssh@ietf.org),
+    which is archived at <span><a href="https://mailarchive.ietf.org/arch/browse/ssh/">https://mailarchive.ietf.org/arch/browse/ssh/</a></span>.<a href="#section-note.1-2" class="pilcrow">¶</a></p>
+<p id="section-note.1-3">Source for this draft and an issue tracker can be found at
+    <span><a href="https://github.com/scssh/ciphers">https://github.com/scssh/ciphers</a></span>.<a href="#section-note.1-3" class="pilcrow">¶</a></p>
 </section>
 <div id="status-of-memo">
 <section id="section-boilerplate.1">

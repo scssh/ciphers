@@ -48,17 +48,15 @@ jobs:
         make: fix-lint
         # 不需要 token，因为只是修改本地文件
     
-    # --- 新增步骤：检查并提交修复后的代码 ---
+    # 修正后的配置
     - name: "Commit Lint Fixes"
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: "Fix: Automated linting (trailing whitespace cleanup)"
-        # 确保只有在 `fix-lint` 真的修改了文件时才提交
-        commit_options: '--no-edit --amend --skip-ci'
-        # 确保提交在当前的分支上
+        # 将 [skip ci] 标签添加到提交信息末尾
+        commit_message: "Fix: Automated linting (trailing whitespace cleanup) [skip ci]"
+        # 移除无效的 --skip-ci 选项
+        commit_options: '--no-edit --amend' 
         branch: ${{ github.head_ref || github.ref_name }}
-    
-    # -----------------------------
 
     - name: "Build Drafts"
       uses: martinthomson/i-d-template@v1

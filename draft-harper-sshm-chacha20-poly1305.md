@@ -1,5 +1,5 @@
 ---
-title: "A New Encryption Suite for SSH Using ChaCha20-Poly1305"
+title: "Private Encryption Suite for SSH Using ChaCha20-Poly1305 Version 00"
 abbrev: "SSH ChaCha20-Poly1305"
 category: exp
 
@@ -24,7 +24,7 @@ informative:
 
 --- abstract
 
-This document presents a new encryption suite for the SSH (Secure Shell) protocol which utilizes ChaCha20 as the stream cipher and Poly1305 as the message authentication code. By incorporating the AEAD (Authenticated Encryption with Associated Data) construction from RFC 7539, this design replaces the existing dependency on sequence numbers for Nonce generation, thus enhancing both security and operational efficiency.
+This document presents a new encryption suite, chacha20-poly1305-00@scssh.github.io, for the SSH protocol which utilizes ChaCha20 as the stream cipher and Poly1305 as the message authentication code. By incorporating the Authenticated Encryption with Associated Data construction from RFC 7539, this design replaces the existing dependency on sequence numbers for Nonce generation, thus enhancing both security and operational efficiency.
 
 --- middle
 

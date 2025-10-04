@@ -1,10 +1,10 @@
 ---
 title: "Private Encryption Suite for SSH Using ChaCha20-Poly1305 Version 00"
-abbrev: "SSH ChaCha20-Poly1305"
+abbrev: "SSH SSH ChaCha20-Poly1305"
 category: exp
 
 docname: draft-harper-sshm-chacha20-poly1305-latest
-submissiontype: independent
+submissiontype: independent  # also: "independent", "editorial", "IAB", or "IRTF"
 v: 3
 area: SEC
 keyword: SSH
@@ -24,15 +24,34 @@ informative:
 
 --- abstract
 
-This document presents a new encryption suite, chacha20-poly1305-00@scssh.github.io, for the SSH protocol which utilizes ChaCha20 as the stream cipher and Poly1305 as the message authentication code. By incorporating the Authenticated Encryption with Associated Data construction from RFC 7539, this design replaces the existing dependency on sequence numbers for Nonce generation, thus enhancing both security and operational efficiency.
+TODO Abstract
+
 
 --- middle
 
-TODO
+# Introduction
+
+TODO Introduction
+
+
+# Conventions and Definitions
+
+{::boilerplate bcp14-tagged}
+
+
+# Security Considerations
+
+TODO Security
+
+
+# IANA Considerations
+
+This document has no IANA actions.
+
 
 --- back
 
-Acknowledgments
+# Acknowledgments
+{:numbered="false"}
 
-The author acknowledges the contributions of the cryptographic community, particularly those involved in the development of the SSH protocol and the advances in AEAD constructions. Special thanks are also extended to the individuals whose feedback has helped refine this design.
-
+TODO acknowledge.
